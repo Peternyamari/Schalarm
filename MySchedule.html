@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<title>Task Schedule App</title>
+<style>
+  body {
+    font-family: 'Georgia', serif;
+    background: linear-gradient(to right, #006699 0%, #ffcc66 100%);
+    color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-size: smaller;
+  }
+  
+  .container {
+    width: 100%;
+    max-width: 400px;
+    background: linear-gradient(to right, #000066 0%, #009999 100%);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    color: #fff;
+  }
+  
+  h1 {
+    font-size: 30px;
+    margin-bottom: 1.5rem;
+    background: white;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3), 
+                 4px 4px 6px rgba(0, 0, 0, 0.1), 
+                 6px 6px 8px rgba(0, 0, 0, 0.05);
+}
+
+
+
+  
+  #watch {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+  }
+
+  .schedule-container {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #333;
+    border-radius: 12px;
+    margin-bottom: 20px;
+  }
+
+  .schedule {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #282b3a;
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    color: #ddd;
+    transition: transform 0.2s ease;
+  }
+  
+  .schedule:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .schedule-number {
+    color: #ff5c93;
+    font-weight: bold;
+  }
+  
+  .add-schedule-btn, .cancel-schedule-btn, .stop-alarm-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-weight: normal;
+    font-size: smaller;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+  }
+
+  .add-schedule-btn {
+    background: linear-gradient(135deg, #00c6ff, #0072ff);
+  }
+
+  .cancel-schedule-btn {
+    background: linear-gradient(135deg, #ff5c93, #ff9966);
+  }
+
+  .stop-alarm-btn {
+    background: linear-gradient(135deg, #ffde4d, #ff9966);
+  }
+
+  .add-schedule-btn:hover, .cancel-schedule-btn:hover, .stop-alarm-btn:hover {
+    transform: scale(1.05);
+  }
+
+  .add-schedule-btn i, .cancel-schedule-btn i, .stop-alarm-btn i {
+    margin-right: 5px;
+  }
+
+  .done-checkbox {
+    margin-right: 10px;
+  }
+
+  .done {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+
+  input[type="time"], input[type="text"] {
+    background-color: #333;
+    color: #ddd;
+    border: 1px solid #555;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 0 10px;
+    outline: none;
+  }
+</style>
+
+</head>
+<body>
+
+<div class="container">
+  <h1>Task Schedule App</h1>
+  <div id="watch"></div>
+  <div class="schedule-container" id="schedule-list"></div>
+  <div class="schedule">
+    <input type="time" id="schedule-time">
+    <input type="text" id="schedule-task" placeholder="Enter your task">
+    <button class="add-schedule-btn" onclick="addSchedule()"><i class="fas fa-plus"></i>Add</button>
+  </div>
+</div>
+
+<script>
+  const scheduleContainer = document.getElementById("schedule-list");
+  let alarmAudio;
+
+  // Display current time
+  function updateWatch() {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, "0");
+    const minutes = now.getMinutes().toString().padStart(2, "0");
+    const seconds = now.getSeconds().toString().padStart(2, "0");
+    document.getElementById("watch").textContent = `${hours}:${minutes}:${seconds}`;
+  }
+
+  setInterval(updateWatch, 1000); // Update every second
+
+  let scheduleCount = 0;
+
+  function addSchedule() {
+    const timeInput = document.getElementById("schedule-time");
+    const taskInput = document.getElementById("schedule-task");
+
+    const time = timeInput.value;
+    const task = taskInput.value;
+
+    if (time && task) {
+      scheduleCount++;
+
+      const scheduleItem = document.createElement("div");
+      scheduleItem.classList.add("schedule");
+      scheduleItem.innerHTML = `
+        <span class="schedule-number">${scheduleCount}</span>
+        <input type="checkbox" class="done-checkbox" onclick="markAsDone(this)">
+        <span>${time}</span>
+        <span>${task}</span>
+        <button class="cancel-schedule-btn" onclick="cancelSchedule(this)"><i class="fas fa-times"></i>Cancel</button>
+        <button class="stop-alarm-btn" onclick="stopAlarm()"><i class="fas fa-bell-slash"></i>Stop</button>
+      `;
+      scheduleContainer.appendChild(scheduleItem);
+
+      // Set the alarm
+      const currentTime = new Date();
+      const [hours, minutes] = time.split(":");
+      const scheduledTime = new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate(), hours, minutes);
+      const timeDifference = scheduledTime - currentTime;
+
+      if (timeDifference > 0) {
+          alarmAudio = new Audio('music/wakeup.mp3');
+          setTimeout(() => {
+              alarmAudio.play();
+          }, timeDifference);
+      }
+
+      // Clear input fields
+      timeInput.value = "";
+      taskInput.value = "";
+    }
+  }
+
+  function cancelSchedule(btn) {
+    const scheduleItem = btn.parentElement;
+    scheduleItem.remove();
+
+    // Decrement schedule count
+    scheduleCount--;
+    updateScheduleNumbers();
+
+    // Stop the alarm if it's ringing
+    if (alarmAudio) {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+    }
+  }
+
+  function markAsDone(checkbox) {
+    const scheduleItem = checkbox.parentElement;
+    if (checkbox.checked) {
+      scheduleItem.classList.add("done");
+    } else {
+      scheduleItem.classList.remove("done");
+    }
+  }
+
+  function updateScheduleNumbers() {
+    const schedules = scheduleContainer.querySelectorAll(".schedule");
+    let count = 1;
+    schedules.forEach(schedule => {
+      const numberElement = schedule.querySelector(".schedule-number");
+      if (numberElement) {
+        numberElement.textContent = count++;
+      }
+    });
+  }
+
+  // Function to stop the alarm manually
+  function stopAlarm() {
+    if (alarmAudio) {
+      alarmAudio.pause();
+      alarmAudio.currentTime = 0;
+    }
+  }
+</script>
+
+</body>
+</html>
